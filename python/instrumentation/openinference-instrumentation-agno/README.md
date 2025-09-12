@@ -16,13 +16,6 @@ pip install openinference-instrumentation-agno
 
 This quickstart shows you how to instrument your Agno Agent application.
 
-You've already installed openinference-instrumentation-agno. Next is to install packages for agno,
-Phoenix and `opentelemetry-instrument`, which exports traces to it.
-
-```shell
-pip install agno arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp-proto-grpc opentelemetry-distro
-```
-
 Start the Phoenix app in the background as a collector:
 
 ```shell
@@ -36,8 +29,20 @@ The Phoenix app does not send data over the internet. It only operates locally o
 Create a simple Agno agent:
 
 ```python example.py
+# /// script
+# dependencies = [
+#     "agno",
+#     "arize-phoenix",
+#     "opentelemetry-sdk",
+#     "opentelemetry-exporter-otlp-proto-http",
+#     "openai",
+#     "ddgs",
+#     "openinference-instrumentation-agno @ file:///Users/codefromthecrypt/oss/ai-gateway/tests/internal/testopeninference/openinference/python/instrumentation/openinference-instrumentation-agno",
+# ]
+# ///
+
 from agno.agent import Agent
-from agno.models.openai import OpenAIChat
+from agno.models.openai.chat import OpenAIChat
 from agno.tools.duckduckgo import DuckDuckGoTools
 
 from openinference.instrumentation.agno import AgnoInstrumentor
@@ -57,21 +62,22 @@ trace_api.set_tracer_provider(tracer_provider=tracer_provider)
 # Start instrumenting agno
 AgnoInstrumentor().instrument()
 
-
 agent = Agent(
-    model=OpenAIChat(id="gpt-4o-mini"), 
+    name="Research Agent",
+    model=OpenAIChat(id="gpt-4o-mini"),
     tools=[DuckDuckGoTools()],
-    markdown=True, 
+    markdown=True,
     debug_mode=True,
 )
 
-agent.run("What is currently trending on Twitter?")
+result = agent.run("What is currently trending on Twitter?")
+print(result.content)
 ```
 
-Finally, run the example:
+Finally, run the example with uv:
 
 ```shell
-python example.py
+OPENAI_API_KEY=sk-your_key uv run example.py
 ```
 
 Finally, browse for your trace in Phoenix at `http://localhost:6006`!

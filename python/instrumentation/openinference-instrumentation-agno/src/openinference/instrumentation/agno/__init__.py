@@ -1,4 +1,5 @@
-from typing import Any, Callable, Collection, List, Optional, Type
+import logging
+from typing import Any, Callable, Collection, List, Type
 
 from opentelemetry import trace as trace_api
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor  # type: ignore
@@ -15,7 +16,9 @@ from openinference.instrumentation.agno._wrappers import (
 )
 from openinference.instrumentation.agno.version import __version__
 
-_instruments = ("agno >= 1.5.2",)
+_instruments = ("agno >= 2.0, < 3.0",)
+
+logger = logging.getLogger(__name__)
 
 
 # Find all model classes in agno.models that inherit from BaseModel
@@ -67,6 +70,9 @@ def find_model_subclasses() -> List[Type[Any]]:
 
 
 class AgnoInstrumentor(BaseInstrumentor):  # type: ignore
+    def __init__(self) -> None:
+        super().__init__()
+
     __slots__ = (
         "_original_run_method",
         "_original_run_stream_method",
@@ -102,112 +108,122 @@ class AgnoInstrumentor(BaseInstrumentor):  # type: ignore
         )
 
         run_wrapper = _RunWrapper(tracer=self._tracer)
+
         self._original_run_method = getattr(Agent, "_run", None)
-        wrap_function_wrapper(
-            module=Agent,
-            name="_run",
-            wrapper=run_wrapper.run,
-        )
+        if self._original_run_method is not None:
+            wrap_function_wrapper(
+                module=Agent,
+                name="_run",
+                wrapper=run_wrapper.run,
+            )
         self._original_run_stream_method = getattr(Agent, "_run_stream", None)
-        wrap_function_wrapper(
-            module=Agent,
-            name="_run_stream",
-            wrapper=run_wrapper.run_stream,
-        )
+        if self._original_run_stream_method is not None:
+            wrap_function_wrapper(
+                module=Agent,
+                name="_run_stream",
+                wrapper=run_wrapper.run_stream,
+            )
         self._original_arun_method = getattr(Agent, "_arun", None)
-        wrap_function_wrapper(
-            module=Agent,
-            name="_arun",
-            wrapper=run_wrapper.arun,
-        )
+        if self._original_arun_method is not None:
+            wrap_function_wrapper(
+                module=Agent,
+                name="_arun",
+                wrapper=run_wrapper.arun,
+            )
         self._original_arun_stream_method = getattr(Agent, "_arun_stream", None)
-        wrap_function_wrapper(
-            module=Agent,
-            name="_arun_stream",
-            wrapper=run_wrapper.arun_stream,
-        )
+        if self._original_arun_stream_method is not None:
+            wrap_function_wrapper(
+                module=Agent,
+                name="_arun_stream",
+                wrapper=run_wrapper.arun_stream,
+            )
 
         # Register wrapper for team
         self._original_team_run_method = getattr(Team, "_run", None)
-        wrap_function_wrapper(
-            module=Team,
-            name="_run",
-            wrapper=run_wrapper.run,
-        )
+        if self._original_team_run_method is not None:
+            wrap_function_wrapper(
+                module=Team,
+                name="_run",
+                wrapper=run_wrapper.run,
+            )
         self._original_team_run_stream_method = getattr(Team, "_run_stream", None)
-        wrap_function_wrapper(
-            module=Team,
-            name="_run_stream",
-            wrapper=run_wrapper.run_stream,
-        )
+        if self._original_team_run_stream_method is not None:
+            wrap_function_wrapper(
+                module=Team,
+                name="_run_stream",
+                wrapper=run_wrapper.run_stream,
+            )
         self._original_team_arun_method = getattr(Team, "_arun", None)
-        wrap_function_wrapper(
-            module=Team,
-            name="_arun",
-            wrapper=run_wrapper.arun,
-        )
+        if self._original_team_arun_method is not None:
+            wrap_function_wrapper(
+                module=Team,
+                name="_arun",
+                wrapper=run_wrapper.arun,
+            )
         self._original_team_arun_stream_method = getattr(Team, "_arun_stream", None)
-        wrap_function_wrapper(
-            module=Team,
-            name="_arun_stream",
-            wrapper=run_wrapper.arun_stream,
-        )
+        if self._original_team_arun_stream_method is not None:
+            wrap_function_wrapper(
+                module=Team,
+                name="_arun_stream",
+                wrapper=run_wrapper.arun_stream,
+            )
 
-        self._original_model_call_methods: Optional[dict[type, dict[str, Callable[..., Any]]]] = {}
+        self._original_model_call_methods: dict[type, dict[str, Callable[..., Any]]] = {}
 
         # Get all model subclasses
         agno_model_subclasses = find_model_subclasses()
         # Instrument all model subclasses
         for model_subclass in agno_model_subclasses:
             model_wrapper = _ModelWrapper(tracer=self._tracer)
-            self._original_model_call_methods[model_subclass] = {
-                "invoke": model_subclass.invoke,
-                "ainvoke": model_subclass.ainvoke,
-                "invoke_stream": model_subclass.invoke_stream,
-                "ainvoke_stream": model_subclass.ainvoke_stream,
-            }
-
-            # Only wrap if the class has a invoke method
-            for method_name, method in self._original_model_call_methods[model_subclass].items():
-                if method is not None:
-                    if method_name == "invoke":
-                        wrap_function_wrapper(
-                            module=model_subclass,
-                            name=method_name,
-                            wrapper=model_wrapper.run,
-                        )
-                    elif method_name == "invoke_stream":
-                        wrap_function_wrapper(
-                            module=model_subclass,
-                            name=method_name,
-                            wrapper=model_wrapper.run_stream,
-                        )
-                    elif method_name == "ainvoke":
-                        wrap_function_wrapper(
-                            module=model_subclass,
-                            name=method_name,
-                            wrapper=model_wrapper.arun,
-                        )
-                    elif method_name == "ainvoke_stream":
-                        wrap_function_wrapper(
-                            module=model_subclass,
-                            name=method_name,
-                            wrapper=model_wrapper.arun_stream,
-                        )
+            self._original_model_call_methods[model_subclass] = {}
+            for method_name in ["invoke", "ainvoke", "invoke_stream", "ainvoke_stream"]:
+                # Only wrap if the method is defined directly on this class, not inherited
+                # AND if it's not already wrapped
+                if method_name in model_subclass.__dict__:
+                    method = getattr(model_subclass, method_name)
+                    # Check if already wrapped by looking for __wrapped__ attribute
+                    if not hasattr(method, "__wrapped__"):
+                        self._original_model_call_methods[model_subclass][method_name] = method
+                        if method_name == "invoke":
+                            wrap_function_wrapper(
+                                module=model_subclass,
+                                name=method_name,
+                                wrapper=model_wrapper.run,
+                            )
+                        elif method_name == "invoke_stream":
+                            wrap_function_wrapper(
+                                module=model_subclass,
+                                name=method_name,
+                                wrapper=model_wrapper.run_stream,
+                            )
+                        elif method_name == "ainvoke":
+                            wrap_function_wrapper(
+                                module=model_subclass,
+                                name=method_name,
+                                wrapper=model_wrapper.arun,
+                            )
+                        elif method_name == "ainvoke_stream":
+                            wrap_function_wrapper(
+                                module=model_subclass,
+                                name=method_name,
+                                wrapper=model_wrapper.arun_stream,
+                            )
 
         function_call_wrapper = _FunctionCallWrapper(tracer=self._tracer)
         self._original_function_execute_method = getattr(FunctionCall, "execute", None)
-        wrap_function_wrapper(
-            module=FunctionCall,
-            name="execute",
-            wrapper=function_call_wrapper.run,
-        )
+        if self._original_function_execute_method is not None:
+            wrap_function_wrapper(
+                module=FunctionCall,
+                name="execute",
+                wrapper=function_call_wrapper.run,
+            )
         self._original_function_aexecute_method = getattr(FunctionCall, "aexecute", None)
-        wrap_function_wrapper(
-            module=FunctionCall,
-            name="aexecute",
-            wrapper=function_call_wrapper.arun,
-        )
+        if self._original_function_aexecute_method is not None:
+            wrap_function_wrapper(
+                module=FunctionCall,
+                name="aexecute",
+                wrapper=function_call_wrapper.arun,
+            )
 
     def _uninstrument(self, **kwargs: Any) -> None:
         from agno.agent import Agent
@@ -215,29 +231,45 @@ class AgnoInstrumentor(BaseInstrumentor):  # type: ignore
         from agno.tools.function import FunctionCall
 
         if self._original_run_method is not None:
-            Agent.run = self._original_run_method  # type: ignore[method-assign]
+            Agent._run = self._original_run_method  # type: ignore[method-assign]
             self._original_run_method = None
 
+        if self._original_run_stream_method is not None:
+            Agent._run_stream = self._original_run_stream_method  # type: ignore[method-assign]
+            self._original_run_stream_method = None
+
         if self._original_arun_method is not None:
-            Agent.arun = self._original_arun_method  # type: ignore[method-assign]
+            Agent._arun = self._original_arun_method  # type: ignore[method-assign]
             self._original_arun_method = None
 
+        if self._original_arun_stream_method is not None:
+            Agent._arun_stream = self._original_arun_stream_method  # type: ignore[method-assign]
+            self._original_arun_stream_method = None
+
         if self._original_team_run_method is not None:
-            Team.run = self._original_team_run_method  # type: ignore[method-assign]
+            Team._run = self._original_team_run_method  # type: ignore[method-assign]
             self._original_team_run_method = None
 
+        if self._original_team_run_stream_method is not None:
+            Team._run_stream = self._original_team_run_stream_method  # type: ignore[method-assign]
+            self._original_team_run_stream_method = None
+
         if self._original_team_arun_method is not None:
-            Team.arun = self._original_team_arun_method  # type: ignore[method-assign]
+            Team._arun = self._original_team_arun_method  # type: ignore[method-assign]
             self._original_team_arun_method = None
 
-        if self._original_model_call_methods is not None:
+        if self._original_team_arun_stream_method is not None:
+            Team._arun_stream = self._original_team_arun_stream_method  # type: ignore[method-assign]
+            self._original_team_arun_stream_method = None
+
+        if self._original_model_call_methods:
             for (
                 model_subclass,
                 original_model_call_methods,
             ) in self._original_model_call_methods.items():
                 for method_name, method in original_model_call_methods.items():
                     setattr(model_subclass, method_name, method)
-            self._original_model_call_methods = None
+            self._original_model_call_methods = {}
 
         if self._original_function_execute_method is not None:
             FunctionCall.execute = self._original_function_execute_method  # type: ignore[method-assign]

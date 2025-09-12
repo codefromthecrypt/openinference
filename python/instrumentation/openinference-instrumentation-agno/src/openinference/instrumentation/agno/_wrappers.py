@@ -1,4 +1,5 @@
 import json
+import logging
 from enum import Enum
 from inspect import signature
 from secrets import token_hex
@@ -35,6 +36,10 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 _AGNO_PARENT_NODE_CONTEXT_KEY = context_api.create_key("agno_parent_node_id")
 
 
@@ -57,34 +62,136 @@ def _flatten(mapping: Optional[Mapping[str, Any]]) -> Iterator[Tuple[str, Attrib
             yield key, value
 
 
-def _get_input_value(method: Callable[..., Any], *args: Any, **kwargs: Any) -> str:
-    arguments = _bind_arguments(method, *args, **kwargs)
-    arguments = _strip_method_args(arguments)
-    return safe_json_dumps(arguments)
+def _get_input_value(method: Callable[..., Any], instance: Any, *args: Any, **kwargs: Any) -> str:
+    arguments = _bind_arguments(method, instance, *args, **kwargs)
+    return _extract_agent_input(arguments)
 
 
 def _bind_arguments(method: Callable[..., Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
-    method_signature = signature(method)
-    bound_args = method_signature.bind(*args, **kwargs)
-    bound_args.apply_defaults()
-    arguments = bound_args.arguments
-    arguments = OrderedDict(
-        {key: value for key, value in arguments.items() if value is not None and value != {}}
-    )
-    return arguments
+    try:
+        method_signature = signature(method)
+        bound_args = method_signature.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        arguments = bound_args.arguments
+        # Remove 'self' from arguments as it's the instance
+        arguments.pop("self", None)
+        arguments = OrderedDict(
+            {key: value for key, value in arguments.items() if value is not None and value != {}}
+        )
+        return dict(arguments)
+    except (TypeError, ValueError):
+        # Try alternate approach if agno is using kwargs only
+        if kwargs:
+            # Just return the kwargs directly, they're already the arguments we want
+            return dict(kwargs)
+        # If binding fails, return empty dict to avoid breaking the wrapper
+        return {}
 
 
-def _strip_method_args(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in arguments.items() if key not in ("self", "cls")}
+def _extract_agent_input(arguments: Mapping[str, Any]) -> str:
+    """Extract input for Agent/Team spans."""
+    import dataclasses
+
+    # Filter out internal parameters
+    excluded_params = {"self", "cls", "run_response", "run_messages"}
+    result = {}
+
+    for key, value in arguments.items():
+        if key in excluded_params:
+            continue
+
+        if key == "session" and value is not None:
+            # AgentSession or TeamSession - they're dataclasses with to_dict method
+            if hasattr(value, "to_dict"):
+                result[key] = value.to_dict()
+            elif dataclasses.is_dataclass(value) and not isinstance(value, type):
+                # Only call asdict if it's an instance, not a class
+                result[key] = dataclasses.asdict(value)
+            else:
+                # This shouldn't happen for session objects
+                result[key] = str(value)
+        else:
+            # Other parameters pass through as-is
+            result[key] = value
+
+    return safe_json_dumps(result)
 
 
 def _generate_node_id() -> str:
     return token_hex(8)  # Generates 16 hex characters (8 bytes)
 
 
+def _extract_agent_output(response: Any) -> str:
+    """Extract output for Agent/Team spans - expects ModelResponse."""
+    import dataclasses
+
+    if response is None:
+        return "{}"
+
+    # ModelResponse is a dataclass, use dataclasses.asdict
+    if dataclasses.is_dataclass(response) and not isinstance(response, type):
+        # Convert to dict and remove None values
+        response_dict = dataclasses.asdict(response)
+        return safe_json_dumps(_remove_none_values(response_dict))
+
+    return safe_json_dumps(response)
+
+
+def _remove_none_values(obj: Any) -> Any:
+    """Recursively remove None values from dictionaries."""
+    if isinstance(obj, dict):
+        return {k: _remove_none_values(v) for k, v in obj.items() if v is not None}
+    elif isinstance(obj, list):
+        return [_remove_none_values(item) for item in obj]
+    else:
+        return obj
+
+
+def _serialize_dataclass_with_pydantic_fields(obj: Any) -> Any:
+    """Serialize dataclass fields, handling nested Pydantic models properly.
+
+    When a dataclass (like ModelResponse) contains Pydantic models (like Message),
+    dataclasses.asdict() converts them to dicts with ALL fields including None values.
+    This function properly serializes them using their model_dump method.
+    """
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            if v is None:
+                continue  # Skip None values
+
+            # Check if this looks like a serialized Pydantic model
+            # (has many fields that Pydantic models typically have)
+            if isinstance(v, dict) and "metrics" in v and "created_at" in v:
+                # This is likely a Message that was converted to dict by dataclasses.asdict
+                # We can't use model_dump here since it's already a dict, so just clean it
+                result[k] = _remove_none_values(v)
+            elif isinstance(v, list):
+                # Handle lists of potentially Pydantic models
+                result[k] = [_serialize_dataclass_with_pydantic_fields(item) for item in v]
+            elif isinstance(v, dict):
+                # Recursively handle nested dicts
+                result[k] = _serialize_dataclass_with_pydantic_fields(v)
+            else:
+                result[k] = v
+        return result
+    elif isinstance(obj, list):
+        return [_serialize_dataclass_with_pydantic_fields(item) for item in obj]
+    else:
+        return obj
+
+
 def _run_arguments(arguments: Mapping[str, Any]) -> Iterator[Tuple[str, AttributeValue]]:
     user_id = arguments.get("user_id")
     session_id = arguments.get("session_id")
+
+    # For Team._run, session_id is in the session object
+    session = arguments.get("session")
+    if session:
+        if hasattr(session, "session_id"):
+            session_id = session.session_id
+        if hasattr(session, "user_id") and not user_id:
+            user_id = session.user_id
 
     if session_id:
         yield SESSION_ID, session_id
@@ -100,7 +207,7 @@ def _agent_run_attributes(
     context_parent_id = context_api.get_value(_AGNO_PARENT_NODE_CONTEXT_KEY)
 
     if isinstance(agent, Team):
-        # Set graph attributes for team
+        # Set graph attributes for team - these are the main attributes for this span
         if agent.name:
             yield GRAPH_NODE_NAME, agent.name
 
@@ -108,10 +215,26 @@ def _agent_run_attributes(
         if context_parent_id:
             yield GRAPH_NODE_PARENT_ID, cast(str, context_parent_id)
 
-        # Set legacy team attributes
+        # Set team-specific attributes
         yield f"agno{key_suffix}.team", agent.name or ""
+
+        # Add member information as nested attributes (not graph attributes)
         for member in agent.members:
-            yield from _agent_run_attributes(member, f".{member.name}")
+            if member.name:
+                yield f"agno.{member.name}.agent", member.name
+            if member.tools:
+                tool_names = []
+                for tool in member.tools:
+                    if isinstance(tool, Function):
+                        tool_names.append(tool.name)
+                    elif isinstance(tool, Toolkit):
+                        tool_names.extend(sorted(tool.functions.keys()))  # Sort toolkit functions
+                    elif callable(tool):
+                        tool_names.append(tool.__name__)
+                    else:
+                        tool_names.append(str(tool))
+                # Sort tool names for predictable ordering
+                yield f"agno.{member.name}.tools", sorted(tool_names)
 
     elif isinstance(agent, Agent):
         # Set graph attributes for agent
@@ -122,25 +245,27 @@ def _agent_run_attributes(
         if context_parent_id:
             yield GRAPH_NODE_PARENT_ID, cast(str, context_parent_id)
 
-        # Set legacy agent attributes
+        # Set agent-specific attributes
         if agent.name:
             yield f"agno{key_suffix}.agent", agent.name or ""
 
         if agent.knowledge:
             yield f"agno{key_suffix}.knowledge", agent.knowledge.__class__.__name__
 
+        # Always set agno.tools, even if empty (agno 2.0 always has tools attribute)
+        tool_names = []
         if agent.tools:
-            tool_names = []
             for tool in agent.tools:
                 if isinstance(tool, Function):
                     tool_names.append(tool.name)
                 elif isinstance(tool, Toolkit):
-                    tool_names.extend([f for f in tool.functions.keys()])
+                    tool_names.extend(sorted(tool.functions.keys()))  # Sort toolkit functions
                 elif callable(tool):
                     tool_names.append(tool.__name__)
                 else:
                     tool_names.append(str(tool))
-            yield f"agno{key_suffix}.tools", tool_names
+        # Sort tool names for predictable ordering
+        yield f"agno{key_suffix}.tools", tuple(sorted(tool_names))
 
 
 def _setup_team_context(agent: Union[Agent, Team], node_id: str) -> Optional[Any]:
@@ -183,7 +308,7 @@ class _RunWrapper:
         # Generate unique node ID for this execution
         node_id = _generate_node_id()
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         with self._tracer.start_as_current_span(
             span_name,
@@ -194,6 +319,7 @@ class _RunWrapper:
                         GRAPH_NODE_ID: node_id,
                         INPUT_VALUE: _get_input_value(
                             wrapped,
+                            instance,
                             *args,
                             **kwargs,
                         ),
@@ -207,11 +333,21 @@ class _RunWrapper:
             team_token = _setup_team_context(agent, node_id)
 
             try:
-                run_response = wrapped(*args, **kwargs)
+                result = wrapped(*args, **kwargs)
                 span.set_status(trace_api.StatusCode.OK)
-                span.set_attribute(OUTPUT_VALUE, run_response.to_json())
-                span.set_attribute(OUTPUT_MIME_TYPE, JSON)
-                return run_response
+
+                # For Team._run, the response is in the arguments, not the return value
+                if result is not None:
+                    span.set_attribute(OUTPUT_VALUE, _extract_agent_output(result))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON)
+                elif "run_response" in arguments:
+                    # Team._run passes run_response as a parameter and modifies it
+                    run_response_arg = arguments["run_response"]
+                    if run_response_arg is not None:
+                        span.set_attribute(OUTPUT_VALUE, _extract_agent_output(run_response_arg))
+                        span.set_attribute(OUTPUT_MIME_TYPE, JSON)
+
+                return result
 
             except Exception as e:
                 span.set_status(trace_api.StatusCode.ERROR, str(e))
@@ -240,7 +376,7 @@ class _RunWrapper:
 
         # Generate unique node ID for this execution
         node_id = _generate_node_id()
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         with self._tracer.start_as_current_span(
             span_name,
@@ -251,6 +387,7 @@ class _RunWrapper:
                         GRAPH_NODE_ID: node_id,
                         INPUT_VALUE: _get_input_value(
                             wrapped,
+                            instance,
                             *args,
                             **kwargs,
                         ),
@@ -267,7 +404,7 @@ class _RunWrapper:
                 yield from wrapped(*args, **kwargs)
                 run_response = agent.run_response
                 span.set_status(trace_api.StatusCode.OK)
-                span.set_attribute(OUTPUT_VALUE, run_response.to_json())
+                span.set_attribute(OUTPUT_VALUE, _extract_agent_output(run_response))
                 span.set_attribute(OUTPUT_MIME_TYPE, JSON)
 
             except Exception as e:
@@ -294,12 +431,12 @@ class _RunWrapper:
             agent_name = agent.name.replace(" ", "_").replace("-", "_")
         else:
             agent_name = "Agent"
-        span_name = f"{agent_name}.run"
+        span_name = f"{agent_name}.arun"
 
         # Generate unique node ID for this execution
         node_id = _generate_node_id()
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         with self._tracer.start_as_current_span(
             span_name,
@@ -310,6 +447,7 @@ class _RunWrapper:
                         GRAPH_NODE_ID: node_id,
                         INPUT_VALUE: _get_input_value(
                             wrapped,
+                            instance,
                             *args,
                             **kwargs,
                         ),
@@ -323,11 +461,21 @@ class _RunWrapper:
             team_token = _setup_team_context(agent, node_id)
 
             try:
-                run_response = await wrapped(*args, **kwargs)
+                result = await wrapped(*args, **kwargs)
                 span.set_status(trace_api.StatusCode.OK)
-                span.set_attribute(OUTPUT_VALUE, run_response.to_json())
-                span.set_attribute(OUTPUT_MIME_TYPE, JSON)
-                return run_response
+
+                # For Team._arun, the response is in the arguments, not the return value
+                if result is not None:
+                    span.set_attribute(OUTPUT_VALUE, _extract_agent_output(result))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON)
+                elif "run_response" in arguments:
+                    # Team._arun passes run_response as a parameter and modifies it
+                    run_response_arg = arguments["run_response"]
+                    if run_response_arg is not None:
+                        span.set_attribute(OUTPUT_VALUE, _extract_agent_output(run_response_arg))
+                        span.set_attribute(OUTPUT_MIME_TYPE, JSON)
+
+                return result
             except Exception as e:
                 span.set_status(trace_api.StatusCode.ERROR, str(e))
                 raise
@@ -352,12 +500,12 @@ class _RunWrapper:
             agent_name = agent.name.replace(" ", "_").replace("-", "_")
         else:
             agent_name = "Agent"
-        span_name = f"{agent_name}.run"
+        span_name = f"{agent_name}.arun_stream"
 
         # Generate unique node ID for this execution
         node_id = _generate_node_id()
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         with self._tracer.start_as_current_span(
             span_name,
@@ -368,6 +516,7 @@ class _RunWrapper:
                         GRAPH_NODE_ID: node_id,
                         INPUT_VALUE: _get_input_value(
                             wrapped,
+                            instance,
                             *args,
                             **kwargs,
                         ),
@@ -385,7 +534,7 @@ class _RunWrapper:
                     yield response
                 run_response = agent.run_response
                 span.set_status(trace_api.StatusCode.OK)
-                span.set_attribute(OUTPUT_VALUE, run_response.to_json())
+                span.set_attribute(OUTPUT_VALUE, _extract_agent_output(run_response))
                 span.set_attribute(OUTPUT_MIME_TYPE, JSON)
             except Exception as e:
                 span.set_status(trace_api.StatusCode.ERROR, str(e))
@@ -473,10 +622,32 @@ def _output_value_and_mime_type(output: str) -> Iterator[Tuple[str, Any]]:
 
 
 def _parse_model_output(output: Any) -> str:
+    """Parse model output to JSON string.
+
+    Handles:
+    - Pydantic models (Message) with model_dump_json
+    - Dataclasses (ModelResponse) with custom serialization
+    - Dicts and other types
+    """
+    import dataclasses
+
+    # Check for Pydantic model first (like Message)
     if hasattr(output, "model_dump_json"):
-        return output.model_dump_json()  # type: ignore[no-any-return]
+        # Use Pydantic's built-in JSON serialization with exclude_none
+        return output.model_dump_json(exclude_none=True)  # type: ignore[no-any-return]
+
+    # Then check for dataclass (like ModelResponse)
+    elif dataclasses.is_dataclass(output) and not isinstance(output, type):
+        # Convert to dict
+        output_dict = dataclasses.asdict(output)
+
+        # Special handling for nested Pydantic models in dataclass fields
+        cleaned_dict = _serialize_dataclass_with_pydantic_fields(output_dict)
+        return json.dumps(cleaned_dict)
+
     elif isinstance(output, dict):
-        return json.dumps(output)
+        return json.dumps(_remove_none_values(output))
+
     else:
         return str(output)
 
@@ -495,21 +666,24 @@ class _ModelWrapper:
         if context_api.get_value(context_api._SUPPRESS_INSTRUMENTATION_KEY):
             return wrapped(*args, **kwargs)
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         model = instance
-        model_name = model.name
-        span_name = f"{model_name}.invoke"
+        span_name = "ChatCompletion"
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: LLM,
-                **dict(_input_value_and_mime_type(arguments)),
-                **dict(_llm_invocation_parameters(model, arguments)),
-                **dict(_llm_input_messages(arguments)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: LLM,
+                        **dict(_input_value_and_mime_type(arguments)),
+                        **dict(_llm_invocation_parameters(model, arguments)),
+                        **dict(_llm_input_messages(arguments)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
             span.set_status(trace_api.StatusCode.OK)
             span.set_attribute(LLM_MODEL_NAME, model.id)
@@ -531,21 +705,24 @@ class _ModelWrapper:
         if context_api.get_value(context_api._SUPPRESS_INSTRUMENTATION_KEY):
             return wrapped(*args, **kwargs)
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         model = instance
-        model_name = model.name
-        span_name = f"{model_name}.invoke_stream"
+        span_name = "ChatCompletion"
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: LLM,
-                **dict(_input_value_and_mime_type(arguments)),
-                **dict(_llm_invocation_parameters(model)),
-                **dict(_llm_input_messages(arguments)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: LLM,
+                        **dict(_input_value_and_mime_type(arguments)),
+                        **dict(_llm_invocation_parameters(model)),
+                        **dict(_llm_input_messages(arguments)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
             span.set_status(trace_api.StatusCode.OK)
             span.set_attribute(LLM_MODEL_NAME, model.id)
@@ -566,23 +743,26 @@ class _ModelWrapper:
         kwargs: Mapping[str, Any],
     ) -> Any:
         if context_api.get_value(context_api._SUPPRESS_INSTRUMENTATION_KEY):
-            return wrapped(*args, **kwargs)
+            return await wrapped(*args, **kwargs)
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         model = instance
-        model_name = model.name
-        span_name = f"{model_name}.ainvoke"
+        span_name = "ChatCompletion"
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: LLM,
-                **dict(_input_value_and_mime_type(arguments)),
-                **dict(_llm_invocation_parameters(model)),
-                **dict(_llm_input_messages(arguments)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: LLM,
+                        **dict(_input_value_and_mime_type(arguments)),
+                        **dict(_llm_invocation_parameters(model)),
+                        **dict(_llm_input_messages(arguments)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
             span.set_status(trace_api.StatusCode.OK)
             span.set_attribute(LLM_MODEL_NAME, model.id)
@@ -606,21 +786,24 @@ class _ModelWrapper:
                 yield response
             return
 
-        arguments = _bind_arguments(wrapped, *args, **kwargs)
+        arguments = _bind_arguments(wrapped, instance, *args, **kwargs)
 
         model = instance
-        model_name = model.name
-        span_name = f"{model_name}.ainvoke_stream"
+        span_name = "ChatCompletion"
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: LLM,
-                **dict(_input_value_and_mime_type(arguments)),
-                **dict(_llm_invocation_parameters(model)),
-                **dict(_llm_input_messages(arguments)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: LLM,
+                        **dict(_input_value_and_mime_type(arguments)),
+                        **dict(_llm_invocation_parameters(model)),
+                        **dict(_llm_input_messages(arguments)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
             span.set_status(trace_api.StatusCode.OK)
             span.set_attribute(LLM_MODEL_NAME, model.id)
@@ -681,16 +864,20 @@ class _FunctionCallWrapper:
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: TOOL,
-                **dict(_input_value_and_mime_type_for_tool_span(function_arguments)),
-                **dict(_function_call_attributes(function_call)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: TOOL,
+                        **dict(_input_value_and_mime_type_for_tool_span(function_arguments)),
+                        **dict(_function_call_attributes(function_call)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
-            response = wrapped(*args, **kwargs)
+            success = wrapped(*args, **kwargs)  # Returns bool in agno 1.5.2
 
-            if response.status == "success":
+            if success:
                 function_result = function_call.result
                 span.set_status(trace_api.StatusCode.OK)
                 span.set_attributes(
@@ -700,15 +887,13 @@ class _FunctionCallWrapper:
                         )
                     )
                 )
-            elif response.status == "failure":
+            else:
                 function_error_message = function_call.error
                 span.set_status(trace_api.StatusCode.ERROR, function_error_message)
                 span.set_attribute(OUTPUT_VALUE, function_error_message)
                 span.set_attribute(OUTPUT_MIME_TYPE, TEXT)
-            else:
-                span.set_status(trace_api.StatusCode.ERROR, "Unknown function call status")
 
-        return response
+        return success
 
     async def arun(
         self,
@@ -725,20 +910,25 @@ class _FunctionCallWrapper:
         function_name = function.name
         function_arguments = function_call.arguments
 
+        # Keep the tool name without prefix for consistency
         span_name = f"{function_name}"
 
         with self._tracer.start_as_current_span(
             span_name,
-            attributes={
-                OPENINFERENCE_SPAN_KIND: TOOL,
-                **dict(_input_value_and_mime_type_for_tool_span(function_arguments)),
-                **dict(_function_call_attributes(function_call)),
-                **dict(get_attributes_from_context()),
-            },
+            attributes=dict(
+                _flatten(
+                    {
+                        OPENINFERENCE_SPAN_KIND: TOOL,
+                        **dict(_input_value_and_mime_type_for_tool_span(function_arguments)),
+                        **dict(_function_call_attributes(function_call)),
+                        **dict(get_attributes_from_context()),
+                    }
+                )
+            ),
         ) as span:
-            response = await wrapped(*args, **kwargs)
+            success = await wrapped(*args, **kwargs)  # Returns bool in agno 1.5.2
 
-            if response.status == "success":
+            if success:
                 function_result = function_call.result
                 span.set_status(trace_api.StatusCode.OK)
                 span.set_attributes(
@@ -748,15 +938,13 @@ class _FunctionCallWrapper:
                         )
                     )
                 )
-            elif response.status == "failure":
+            else:
                 function_error_message = function_call.error
                 span.set_status(trace_api.StatusCode.ERROR, function_error_message)
                 span.set_attribute(OUTPUT_VALUE, function_error_message)
                 span.set_attribute(OUTPUT_MIME_TYPE, TEXT)
-            else:
-                span.set_status(trace_api.StatusCode.ERROR, "Unknown function call status")
 
-        return response
+        return success
 
 
 # span attributes

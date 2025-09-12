@@ -1,0 +1,562 @@
+interactions:
+- request:
+    body: '{"messages":[{"role":"developer","content":"You are the leader of a team
+      and sub-teams of AI Agents.\nYour task is to coordinate the team to complete
+      the user''s request.\n\nHere are the members in your team:\n<team_members>\n
+      - Agent 1:\n   - ID: scraper-agent\n   - Name: Scraper Agent\n   - Role: Website
+      Scraper\n   - Member tools:\n    - read_url\n - Agent 2:\n   - ID: analyzer-agent\n   -
+      Name: Analyzer Agent\n   - Role: Content Analyzer\n</team_members>\n\n<how_to_respond>\n-
+      Your role is to delegate tasks to members in your team with the highest likelihood
+      of completing the user''s request.\n- Carefully analyze the tools available
+      to the members and their roles before delegating tasks.\n- You cannot use a
+      member tool directly. You can only delegate tasks to members.\n- When you delegate
+      a task to another member, make sure to include:\n  - member_id (str): The ID
+      of the member to delegate the task to. Use only the ID of the member, not the
+      ID of the team followed by the ID of the member.\n  - task_description (str):
+      A clear description of the task.\n  - expected_output (str): The expected output.\n-
+      You can delegate tasks to multiple members at once.\n- You must always analyze
+      the responses from members before responding to the user.\n- After analyzing
+      the responses from the members, if you feel the task has been completed, you
+      can stop and respond to the user.\n- If you are not satisfied with the responses
+      from the members, you should re-assign the task.\n- For simple greetings, thanks,
+      or questions about the team itself, you should respond directly.\n- For all
+      work requests, tasks, or questions requiring expertise, route to appropriate
+      team members.\n</how_to_respond>\n\n<instructions>\n- Use the read_url tool
+      to scrape content from https://quotes.toscrape.com/\n- From the scraped content,
+      identify the first quote and its author\n</instructions>"},{"role":"user","content":"Scrape
+      the text content from https://quotes.toscrape.com/ and identify the first quote
+      and its author. Format as: ''First quote: [quote] by [author]''"}],"model":"gpt-4o-mini","temperature":0,"tools":[{"type":"function","function":{"name":"delegate_task_to_member","description":"Use
+      this function to delegate a task to the selected team member.\nYou must provide
+      a clear and concise description of the task the member should achieve AND the
+      expected output.","parameters":{"type":"object","properties":{"member_id":{"type":"string","description":"(str)
+      The ID of the member to delegate the task to. Use only the ID of the member,
+      not the ID of the team followed by the ID of the member."},"task_description":{"type":"string","description":"(str)
+      A clear and concise description of the task the member should achieve."},"expected_output":{"type":"string","description":"(str)
+      The expected output from the member (optional)."}},"required":["member_id","task_description"],"additionalProperties":false}}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZFMwSNWfUBRL3Z8rGgJHiO9ACe\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758485,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": null,\n        \"tool_calls\": [\n          {\n
+        \           \"id\": \"call_W2kGV4xXowiKCNqJJFWdx9VR\",\n            \"type\":
+        \"function\",\n            \"function\": {\n              \"name\": \"delegate_task_to_member\",\n
+        \             \"arguments\": \"{\\\"member_id\\\":\\\"scraper-agent\\\",\\\"task_description\\\":\\\"Scrape
+        the text content from https://quotes.toscrape.com/\\\",\\\"expected_output\\\":\\\"The
+        scraped content from the website.\\\"}\"\n            }\n          }\n        ],\n
+        \       \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\":
+        null,\n      \"finish_reason\": \"tool_calls\"\n    }\n  ],\n  \"usage\":
+        {\n    \"prompt_tokens\": 593,\n    \"completion_tokens\": 49,\n    \"total_tokens\":
+        642,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"audio_tokens\":
+        0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\":
+        0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n
+        \     \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_8bda4d3a2c\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"developer","content":"<your_role>\nWebsite Scraper\n</your_role>\n\n<instructions>\nScrape
+      the content from the given website URL\n</instructions>"},{"role":"user","content":[{"type":"text","text":"You
+      are a member of a team of agents. Your goal is to complete the following task:\n\n<task>\nScrape
+      the text content from https://quotes.toscrape.com/\n</task>\n\n<expected_output>\nThe
+      scraped content from the website.\n</expected_output>"}]}],"model":"gpt-4o-mini","temperature":0,"tools":[{"type":"function","function":{"name":"read_url","description":"","parameters":{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]},"requires_confirmation":false,"external_execution":false}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZGK5UyixlFMuwYNTvcyVh7IKdT\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758486,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": null,\n        \"tool_calls\": [\n          {\n
+        \           \"id\": \"call_m5nZjXztKKJNcRBXXKxfn9sp\",\n            \"type\":
+        \"function\",\n            \"function\": {\n              \"name\": \"read_url\",\n
+        \             \"arguments\": \"{\\\"url\\\":\\\"https://quotes.toscrape.com/\\\"}\"\n
+        \           }\n          }\n        ],\n        \"refusal\": null,\n        \"annotations\":
+        []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"tool_calls\"\n
+        \   }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 120,\n    \"completion_tokens\":
+        22,\n    \"total_tokens\": 142,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_8bda4d3a2c\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://quotes.toscrape.com/
+  response:
+    body:
+      string: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n\t<meta charset=\"UTF-8\">\n\t<title>Quotes
+        to Scrape</title>\n    <link rel=\"stylesheet\" href=\"/static/bootstrap.min.css\">\n
+        \   <link rel=\"stylesheet\" href=\"/static/main.css\">\n    \n    \n</head>\n<body>\n
+        \   <div class=\"container\">\n        <div class=\"row header-box\">\n            <div
+        class=\"col-md-8\">\n                <h1>\n                    <a href=\"/\"
+        style=\"text-decoration: none\">Quotes to Scrape</a>\n                </h1>\n
+        \           </div>\n            <div class=\"col-md-4\">\n                <p>\n
+        \               \n                    <a href=\"/login\">Login</a>\n                \n
+        \               </p>\n            </div>\n        </div>\n    \n\n<div class=\"row\">\n
+        \   <div class=\"col-md-8\">\n\n    <div class=\"quote\" itemscope itemtype=\"http://schema.org/CreativeWork\">\n
+        \       <span class=\"text\" itemprop=\"text\">\u201CThe world as we have
+        created it is a process of our thinking. It cannot be changed without changing
+        our thinking.\u201D</span>\n        <span>by <small class=\"author\" itemprop=\"author\">Albert
+        Einstein</small>\n        <a href=\"/author/Albert-Einstein\">(about)</a>\n
+        \       </span>\n        <div class=\"tags\">\n            Tags:\n            <meta
+        class=\"keywords\" itemprop=\"keywords\" content=\"change,deep-thoughts,thinking,world\"
+        /    > \n            \n            <a class=\"tag\" href=\"/tag/change/page/1/\">change</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/deep-thoughts/page/1/\">deep-thoughts</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/thinking/page/1/\">thinking</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/world/page/1/\">world</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CIt is our choices, Harry, that show what we truly
+        are, far more than our abilities.\u201D</span>\n        <span>by <small class=\"author\"
+        itemprop=\"author\">J.K. Rowling</small>\n        <a href=\"/author/J-K-Rowling\">(about)</a>\n
+        \       </span>\n        <div class=\"tags\">\n            Tags:\n            <meta
+        class=\"keywords\" itemprop=\"keywords\" content=\"abilities,choices\" /    >
+        \n            \n            <a class=\"tag\" href=\"/tag/abilities/page/1/\">abilities</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/choices/page/1/\">choices</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CThere are only two ways to live your life. One is
+        as though nothing is a miracle. The other is as though everything is a miracle.\u201D</span>\n
+        \       <span>by <small class=\"author\" itemprop=\"author\">Albert Einstein</small>\n
+        \       <a href=\"/author/Albert-Einstein\">(about)</a>\n        </span>\n
+        \       <div class=\"tags\">\n            Tags:\n            <meta class=\"keywords\"
+        itemprop=\"keywords\" content=\"inspirational,life,live,miracle,miracles\"
+        /    > \n            \n            <a class=\"tag\" href=\"/tag/inspirational/page/1/\">inspirational</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/life/page/1/\">life</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/live/page/1/\">live</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/miracle/page/1/\">miracle</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/miracles/page/1/\">miracles</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CThe person, be it gentleman or lady, who has not pleasure
+        in a good novel, must be intolerably stupid.\u201D</span>\n        <span>by
+        <small class=\"author\" itemprop=\"author\">Jane Austen</small>\n        <a
+        href=\"/author/Jane-Austen\">(about)</a>\n        </span>\n        <div class=\"tags\">\n
+        \           Tags:\n            <meta class=\"keywords\" itemprop=\"keywords\"
+        content=\"aliteracy,books,classic,humor\" /    > \n            \n            <a
+        class=\"tag\" href=\"/tag/aliteracy/page/1/\">aliteracy</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/books/page/1/\">books</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/classic/page/1/\">classic</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/humor/page/1/\">humor</a>\n            \n
+        \       </div>\n    </div>\n\n    <div class=\"quote\" itemscope itemtype=\"http://schema.org/CreativeWork\">\n
+        \       <span class=\"text\" itemprop=\"text\">\u201CImperfection is beauty,
+        madness is genius and it&#39;s better to be absolutely ridiculous than absolutely
+        boring.\u201D</span>\n        <span>by <small class=\"author\" itemprop=\"author\">Marilyn
+        Monroe</small>\n        <a href=\"/author/Marilyn-Monroe\">(about)</a>\n        </span>\n
+        \       <div class=\"tags\">\n            Tags:\n            <meta class=\"keywords\"
+        itemprop=\"keywords\" content=\"be-yourself,inspirational\" /    > \n            \n
+        \           <a class=\"tag\" href=\"/tag/be-yourself/page/1/\">be-yourself</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/inspirational/page/1/\">inspirational</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CTry not to become a man of success. Rather become
+        a man of value.\u201D</span>\n        <span>by <small class=\"author\" itemprop=\"author\">Albert
+        Einstein</small>\n        <a href=\"/author/Albert-Einstein\">(about)</a>\n
+        \       </span>\n        <div class=\"tags\">\n            Tags:\n            <meta
+        class=\"keywords\" itemprop=\"keywords\" content=\"adulthood,success,value\"
+        /    > \n            \n            <a class=\"tag\" href=\"/tag/adulthood/page/1/\">adulthood</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/success/page/1/\">success</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/value/page/1/\">value</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CIt is better to be hated for what you are than to
+        be loved for what you are not.\u201D</span>\n        <span>by <small class=\"author\"
+        itemprop=\"author\">Andr\xE9 Gide</small>\n        <a href=\"/author/Andre-Gide\">(about)</a>\n
+        \       </span>\n        <div class=\"tags\">\n            Tags:\n            <meta
+        class=\"keywords\" itemprop=\"keywords\" content=\"life,love\" /    > \n            \n
+        \           <a class=\"tag\" href=\"/tag/life/page/1/\">life</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/love/page/1/\">love</a>\n            \n
+        \       </div>\n    </div>\n\n    <div class=\"quote\" itemscope itemtype=\"http://schema.org/CreativeWork\">\n
+        \       <span class=\"text\" itemprop=\"text\">\u201CI have not failed. I&#39;ve
+        just found 10,000 ways that won&#39;t work.\u201D</span>\n        <span>by
+        <small class=\"author\" itemprop=\"author\">Thomas A. Edison</small>\n        <a
+        href=\"/author/Thomas-A-Edison\">(about)</a>\n        </span>\n        <div
+        class=\"tags\">\n            Tags:\n            <meta class=\"keywords\" itemprop=\"keywords\"
+        content=\"edison,failure,inspirational,paraphrased\" /    > \n            \n
+        \           <a class=\"tag\" href=\"/tag/edison/page/1/\">edison</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/failure/page/1/\">failure</a>\n            \n
+        \           <a class=\"tag\" href=\"/tag/inspirational/page/1/\">inspirational</a>\n
+        \           \n            <a class=\"tag\" href=\"/tag/paraphrased/page/1/\">paraphrased</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CA woman is like a tea bag; you never know how strong
+        it is until it&#39;s in hot water.\u201D</span>\n        <span>by <small class=\"author\"
+        itemprop=\"author\">Eleanor Roosevelt</small>\n        <a href=\"/author/Eleanor-Roosevelt\">(about)</a>\n
+        \       </span>\n        <div class=\"tags\">\n            Tags:\n            <meta
+        class=\"keywords\" itemprop=\"keywords\" content=\"misattributed-eleanor-roosevelt\"
+        /    > \n            \n            <a class=\"tag\" href=\"/tag/misattributed-eleanor-roosevelt/page/1/\">misattributed-eleanor-roosevelt</a>\n
+        \           \n        </div>\n    </div>\n\n    <div class=\"quote\" itemscope
+        itemtype=\"http://schema.org/CreativeWork\">\n        <span class=\"text\"
+        itemprop=\"text\">\u201CA day without sunshine is like, you know, night.\u201D</span>\n
+        \       <span>by <small class=\"author\" itemprop=\"author\">Steve Martin</small>\n
+        \       <a href=\"/author/Steve-Martin\">(about)</a>\n        </span>\n        <div
+        class=\"tags\">\n            Tags:\n            <meta class=\"keywords\" itemprop=\"keywords\"
+        content=\"humor,obvious,simile\" /    > \n            \n            <a class=\"tag\"
+        href=\"/tag/humor/page/1/\">humor</a>\n            \n            <a class=\"tag\"
+        href=\"/tag/obvious/page/1/\">obvious</a>\n            \n            <a class=\"tag\"
+        href=\"/tag/simile/page/1/\">simile</a>\n            \n        </div>\n    </div>\n\n
+        \   <nav>\n        <ul class=\"pager\">\n            \n            \n            <li
+        class=\"next\">\n                <a href=\"/page/2/\">Next <span aria-hidden=\"true\">&rarr;</span></a>\n
+        \           </li>\n            \n        </ul>\n    </nav>\n    </div>\n    <div
+        class=\"col-md-4 tags-box\">\n        \n            <h2>Top Ten tags</h2>\n
+        \           \n            <span class=\"tag-item\">\n            <a class=\"tag\"
+        style=\"font-size: 28px\" href=\"/tag/love/\">love</a>\n            </span>\n
+        \           \n            <span class=\"tag-item\">\n            <a class=\"tag\"
+        style=\"font-size: 26px\" href=\"/tag/inspirational/\">inspirational</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 26px\" href=\"/tag/life/\">life</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 24px\" href=\"/tag/humor/\">humor</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 22px\" href=\"/tag/books/\">books</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 14px\" href=\"/tag/reading/\">reading</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 10px\" href=\"/tag/friendship/\">friendship</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 8px\" href=\"/tag/friends/\">friends</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 8px\" href=\"/tag/truth/\">truth</a>\n
+        \           </span>\n            \n            <span class=\"tag-item\">\n
+        \           <a class=\"tag\" style=\"font-size: 6px\" href=\"/tag/simile/\">simile</a>\n
+        \           </span>\n            \n        \n    </div>\n</div>\n\n    </div>\n
+        \   <footer class=\"footer\">\n        <div class=\"container\">\n            <p
+        class=\"text-muted\">\n                Quotes by: <a href=\"https://www.goodreads.com/quotes\">GoodReads.com</a>\n
+        \           </p>\n            <p class=\"copyright\">\n                Made
+        with <span class='zyte'>\u2764</span> by <a class='zyte' href=\"https://www.zyte.com\">Zyte</a>\n
+        \           </p>\n        </div>\n    </footer>\n</body>\n</html>"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"role\":\"developer\",\"content\":\"<your_role>\\nWebsite
+      Scraper\\n</your_role>\\n\\n<instructions>\\nScrape the content from the given
+      website URL\\n</instructions>\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"You
+      are a member of a team of agents. Your goal is to complete the following task:\\n\\n<task>\\nScrape
+      the text content from https://quotes.toscrape.com/\\n</task>\\n\\n<expected_output>\\nThe
+      scraped content from the website.\\n</expected_output>\"}]},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_m5nZjXztKKJNcRBXXKxfn9sp\",\"function\":{\"arguments\":\"{\\\"url\\\":\\\"https://quotes.toscrape.com/\\\"}\",\"name\":\"read_url\"},\"type\":\"function\"}],\"content\":\"\"},{\"role\":\"tool\",\"content\":\"Quotes
+      to Scrape Quotes to Scrape Login \u201CThe world as we have created it is a
+      process of our thinking. It cannot be changed without changing our thinking.\u201D
+      by Albert Einstein (about) Tags: change deep-thoughts thinking world \u201CIt
+      is our choices, Harry, that show what we truly are, far more than our abilities.\u201D
+      by J.K. Rowling (about) Tags: abilities choices \u201CThere are only two ways
+      to live your life. One is as though nothing is a miracle. The other is as though
+      everything is a miracle.\u201D by Albert Einstein (about) Tags: inspirational
+      life live miracle miracles \u201CThe person, be it gentleman or lady, who has
+      not pleasure in a good novel, must be intolerably stupid.\u201D by Jane Austen
+      (about) Tags: aliteracy books classic humor \u201CImperfection is beauty, madness
+      is genius and it's better to be absolutely ridiculous than absolutely boring.\u201D
+      by Marilyn Monroe (about) Tags: be-yourself inspirational \u201CTry not to become
+      a man of success. Rather become a man of value.\u201D by Albert Einstein (about)
+      Tags: adulthood success value \u201CIt is better to be hated for what you are
+      than to be loved for what you are not.\u201D by Andr\xE9 Gide (about) Tags:
+      life love \u201CI have not failed. I've just found 10,000 ways that won't work.\u201D
+      by Thomas A. Edison (about) Tags: edison failure inspirational paraphrased \u201CA
+      woman is like a tea bag; you never know how strong it is until it's in hot water.\u201D
+      by Eleanor Roosevelt (about) Tags: misattributed-eleanor-roosevelt \u201CA day
+      without sunshine is like, you know, night.\u201D by Steve Martin (about) Tags:
+      humor obvious simile Next \u2192 Top Ten tags love inspirational life humor
+      books reading friendship friends truth simile Quotes by: GoodReads.com Made
+      with \u2764 by Zyte\",\"tool_call_id\":\"call_m5nZjXztKKJNcRBXXKxfn9sp\"}],\"model\":\"gpt-4o-mini\",\"temperature\":0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"read_url\",\"description\":\"\",\"parameters\":{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\"}},\"required\":[\"url\"]},\"requires_confirmation\":false,\"external_execution\":false}}]}"
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZIAs9Gqz3F1XPcw8Nqcrg2GFNt\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758488,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"Here is the scraped content from the
+        website:\\n\\n---\\n\\n**Quotes to Scrape**\\n\\n1. \u201CThe world as we
+        have created it is a process of our thinking. It cannot be changed without
+        changing our thinking.\u201D  \\n   \u2014 Albert Einstein  \\n   Tags: change,
+        deep-thoughts, thinking, world\\n\\n2. \u201CIt is our choices, Harry, that
+        show what we truly are, far more than our abilities.\u201D  \\n   \u2014 J.K.
+        Rowling  \\n   Tags: abilities, choices\\n\\n3. \u201CThere are only two ways
+        to live your life. One is as though nothing is a miracle. The other is as
+        though everything is a miracle.\u201D  \\n   \u2014 Albert Einstein  \\n   Tags:
+        inspirational, life, live, miracle, miracles\\n\\n4. \u201CThe person, be
+        it gentleman or lady, who has not pleasure in a good novel, must be intolerably
+        stupid.\u201D  \\n   \u2014 Jane Austen  \\n   Tags: aliteracy, books, classic,
+        humor\\n\\n5. \u201CImperfection is beauty, madness is genius and it's better
+        to be absolutely ridiculous than absolutely boring.\u201D  \\n   \u2014 Marilyn
+        Monroe  \\n   Tags: be-yourself, inspirational\\n\\n6. \u201CTry not to become
+        a man of success. Rather become a man of value.\u201D  \\n   \u2014 Albert
+        Einstein  \\n   Tags: adulthood, success, value\\n\\n7. \u201CIt is better
+        to be hated for what you are than to be loved for what you are not.\u201D
+        \ \\n   \u2014 Andr\xE9 Gide  \\n   Tags: life, love\\n\\n8. \u201CI have
+        not failed. I've just found 10,000 ways that won't work.\u201D  \\n   \u2014
+        Thomas A. Edison  \\n   Tags: edison, failure, inspirational, paraphrased\\n\\n9.
+        \u201CA woman is like a tea bag; you never know how strong it is until it's
+        in hot water.\u201D  \\n   \u2014 Eleanor Roosevelt  \\n   Tags: misattributed-eleanor-roosevelt\\n\\n10.
+        \u201CA day without sunshine is like, you know, night.\u201D  \\n    \u2014
+        Steve Martin  \\n    Tags: humor, obvious, simile\\n\\n---\\n\\n**Top Ten
+        tags:** love, inspirational, life, humor, books, reading, friendship, friends,
+        truth, simile\\n\\n---\\n\\n**Quotes by:** GoodReads.com  \\n**Made with \u2764
+        by Zyte**\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n
+        \     \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n
+        \ \"usage\": {\n    \"prompt_tokens\": 528,\n    \"completion_tokens\": 462,\n
+        \   \"total_tokens\": 990,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_8bda4d3a2c\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"role\":\"developer\",\"content\":\"You are the leader
+      of a team and sub-teams of AI Agents.\\nYour task is to coordinate the team
+      to complete the user's request.\\n\\nHere are the members in your team:\\n<team_members>\\n
+      - Agent 1:\\n   - ID: scraper-agent\\n   - Name: Scraper Agent\\n   - Role:
+      Website Scraper\\n   - Member tools:\\n    - read_url\\n - Agent 2:\\n   - ID:
+      analyzer-agent\\n   - Name: Analyzer Agent\\n   - Role: Content Analyzer\\n</team_members>\\n\\n<how_to_respond>\\n-
+      Your role is to delegate tasks to members in your team with the highest likelihood
+      of completing the user's request.\\n- Carefully analyze the tools available
+      to the members and their roles before delegating tasks.\\n- You cannot use a
+      member tool directly. You can only delegate tasks to members.\\n- When you delegate
+      a task to another member, make sure to include:\\n  - member_id (str): The ID
+      of the member to delegate the task to. Use only the ID of the member, not the
+      ID of the team followed by the ID of the member.\\n  - task_description (str):
+      A clear description of the task.\\n  - expected_output (str): The expected output.\\n-
+      You can delegate tasks to multiple members at once.\\n- You must always analyze
+      the responses from members before responding to the user.\\n- After analyzing
+      the responses from the members, if you feel the task has been completed, you
+      can stop and respond to the user.\\n- If you are not satisfied with the responses
+      from the members, you should re-assign the task.\\n- For simple greetings, thanks,
+      or questions about the team itself, you should respond directly.\\n- For all
+      work requests, tasks, or questions requiring expertise, route to appropriate
+      team members.\\n</how_to_respond>\\n\\n<instructions>\\n- Use the read_url tool
+      to scrape content from https://quotes.toscrape.com/\\n- From the scraped content,
+      identify the first quote and its author\\n</instructions>\"},{\"role\":\"user\",\"content\":\"Scrape
+      the text content from https://quotes.toscrape.com/ and identify the first quote
+      and its author. Format as: 'First quote: [quote] by [author]'\"},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_W2kGV4xXowiKCNqJJFWdx9VR\",\"function\":{\"arguments\":\"{\\\"member_id\\\":\\\"scraper-agent\\\",\\\"task_description\\\":\\\"Scrape
+      the text content from https://quotes.toscrape.com/\\\",\\\"expected_output\\\":\\\"The
+      scraped content from the website.\\\"}\",\"name\":\"delegate_task_to_member\"},\"type\":\"function\"}],\"content\":\"\"},{\"role\":\"tool\",\"content\":\"Here
+      is the scraped content from the website:\\n\\n---\\n\\n**Quotes to Scrape**\\n\\n1.
+      \u201CThe world as we have created it is a process of our thinking. It cannot
+      be changed without changing our thinking.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: change, deep-thoughts, thinking, world\\n\\n2. \u201CIt is our
+      choices, Harry, that show what we truly are, far more than our abilities.\u201D
+      \ \\n   \u2014 J.K. Rowling  \\n   Tags: abilities, choices\\n\\n3. \u201CThere
+      are only two ways to live your life. One is as though nothing is a miracle.
+      The other is as though everything is a miracle.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: inspirational, life, live, miracle, miracles\\n\\n4. \u201CThe
+      person, be it gentleman or lady, who has not pleasure in a good novel, must
+      be intolerably stupid.\u201D  \\n   \u2014 Jane Austen  \\n   Tags: aliteracy,
+      books, classic, humor\\n\\n5. \u201CImperfection is beauty, madness is genius
+      and it's better to be absolutely ridiculous than absolutely boring.\u201D  \\n
+      \  \u2014 Marilyn Monroe  \\n   Tags: be-yourself, inspirational\\n\\n6. \u201CTry
+      not to become a man of success. Rather become a man of value.\u201D  \\n   \u2014
+      Albert Einstein  \\n   Tags: adulthood, success, value\\n\\n7. \u201CIt is better
+      to be hated for what you are than to be loved for what you are not.\u201D  \\n
+      \  \u2014 Andr\xE9 Gide  \\n   Tags: life, love\\n\\n8. \u201CI have not failed.
+      I've just found 10,000 ways that won't work.\u201D  \\n   \u2014 Thomas A. Edison
+      \ \\n   Tags: edison, failure, inspirational, paraphrased\\n\\n9. \u201CA woman
+      is like a tea bag; you never know how strong it is until it's in hot water.\u201D
+      \ \\n   \u2014 Eleanor Roosevelt  \\n   Tags: misattributed-eleanor-roosevelt\\n\\n10.
+      \u201CA day without sunshine is like, you know, night.\u201D  \\n    \u2014
+      Steve Martin  \\n    Tags: humor, obvious, simile\\n\\n---\\n\\n**Top Ten tags:**
+      love, inspirational, life, humor, books, reading, friendship, friends, truth,
+      simile\\n\\n---\\n\\n**Quotes by:** GoodReads.com  \\n**Made with \u2764 by
+      Zyte**\",\"tool_call_id\":\"call_W2kGV4xXowiKCNqJJFWdx9VR\"}],\"model\":\"gpt-4o-mini\",\"temperature\":0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"delegate_task_to_member\",\"description\":\"Use
+      this function to delegate a task to the selected team member.\\nYou must provide
+      a clear and concise description of the task the member should achieve AND the
+      expected output.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"member_id\":{\"type\":\"string\",\"description\":\"(str)
+      The ID of the member to delegate the task to. Use only the ID of the member,
+      not the ID of the team followed by the ID of the member.\"},\"task_description\":{\"type\":\"string\",\"description\":\"(str)
+      A clear and concise description of the task the member should achieve.\"},\"expected_output\":{\"type\":\"string\",\"description\":\"(str)
+      The expected output from the member (optional).\"}},\"required\":[\"member_id\",\"task_description\"],\"additionalProperties\":false}}}]}"
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZPQoXYBgehkUU8QTIeUgVPrSwG\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758495,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": null,\n        \"tool_calls\": [\n          {\n
+        \           \"id\": \"call_SGAptoX1CWhdD032WZmOaRJV\",\n            \"type\":
+        \"function\",\n            \"function\": {\n              \"name\": \"delegate_task_to_member\",\n
+        \             \"arguments\": \"{\\\"member_id\\\":\\\"analyzer-agent\\\",\\\"task_description\\\":\\\"Analyze
+        the scraped content and identify the first quote and its author. Format the
+        output as: 'First quote: [quote] by [author]'\\\",\\\"expected_output\\\":\\\"Formatted
+        string with the first quote and its author.\\\"}\"\n            }\n          }\n
+        \       ],\n        \"refusal\": null,\n        \"annotations\": []\n      },\n
+        \     \"logprobs\": null,\n      \"finish_reason\": \"tool_calls\"\n    }\n
+        \ ],\n  \"usage\": {\n    \"prompt_tokens\": 1113,\n    \"completion_tokens\":
+        66,\n    \"total_tokens\": 1179,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        1024,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_8bda4d3a2c\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"role\":\"developer\",\"content\":\"<your_role>\\nContent
+      Analyzer\\n</your_role>\\n\\n<instructions>\\nAnalyze scraped website content
+      to extract useful information such as extracting quotes and authors.\\n</instructions>\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"You
+      are a member of a team of agents. Your goal is to complete the following task:\\n\\n<task>\\nAnalyze
+      the scraped content and identify the first quote and its author. Format the
+      output as: 'First quote: [quote] by [author]'\\n</task>\\n\\n<expected_output>\\nFormatted
+      string with the first quote and its author.\\n</expected_output>\\n\\n<member
+      interactions>\\nMember: Scraper Agent\\nTask: You are a member of a team of
+      agents. Your goal is to complete the following task:\\n\\n<task>\\nScrape the
+      text content from https://quotes.toscrape.com/\\n</task>\\n\\n<expected_output>\\nThe
+      scraped content from the website.\\n</expected_output>\\nResponse: Here is the
+      scraped content from the website:\\n\\n---\\n\\n**Quotes to Scrape**\\n\\n1.
+      \u201CThe world as we have created it is a process of our thinking. It cannot
+      be changed without changing our thinking.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: change, deep-thoughts, thinking, world\\n\\n2. \u201CIt is our
+      choices, Harry, that show what we truly are, far more than our abilities.\u201D
+      \ \\n   \u2014 J.K. Rowling  \\n   Tags: abilities, choices\\n\\n3. \u201CThere
+      are only two ways to live your life. One is as though nothing is a miracle.
+      The other is as though everything is a miracle.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: inspirational, life, live, miracle, miracles\\n\\n4. \u201CThe
+      person, be it gentleman or lady, who has not pleasure in a good novel, must
+      be intolerably stupid.\u201D  \\n   \u2014 Jane Austen  \\n   Tags: aliteracy,
+      books, classic, humor\\n\\n5. \u201CImperfection is beauty, madness is genius
+      and it's better to be absolutely ridiculous than absolutely boring.\u201D  \\n
+      \  \u2014 Marilyn Monroe  \\n   Tags: be-yourself, inspirational\\n\\n6. \u201CTry
+      not to become a man of success. Rather become a man of value.\u201D  \\n   \u2014
+      Albert Einstein  \\n   Tags: adulthood, success, value\\n\\n7. \u201CIt is better
+      to be hated for what you are than to be loved for what you are not.\u201D  \\n
+      \  \u2014 Andr\xE9 Gide  \\n   Tags: life, love\\n\\n8. \u201CI have not failed.
+      I've just found 10,000 ways that won't work.\u201D  \\n   \u2014 Thomas A. Edison
+      \ \\n   Tags: edison, failure, inspirational, paraphrased\\n\\n9. \u201CA woman
+      is like a tea bag; you never know how strong it is until it's in hot water.\u201D
+      \ \\n   \u2014 Eleanor Roosevelt  \\n   Tags: misattributed-eleanor-roosevelt\\n\\n10.
+      \u201CA day without sunshine is like, you know, night.\u201D  \\n    \u2014
+      Steve Martin  \\n    Tags: humor, obvious, simile\\n\\n---\\n\\n**Top Ten tags:**
+      love, inspirational, life, humor, books, reading, friendship, friends, truth,
+      simile\\n\\n---\\n\\n**Quotes by:** GoodReads.com  \\n**Made with \u2764 by
+      Zyte**\\n\\n</member interactions>\\n\"}]}],\"model\":\"gpt-4o-mini\",\"temperature\":0}"
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZQAhqHDBhFoAF8n2O2afMn9o8a\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758496,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"First quote: \u201CThe world as we
+        have created it is a process of our thinking. It cannot be changed without
+        changing our thinking.\u201D by Albert Einstein\",\n        \"refusal\": null,\n
+        \       \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\":
+        \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 649,\n    \"completion_tokens\":
+        30,\n    \"total_tokens\": 679,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_560af6e559\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"role\":\"developer\",\"content\":\"You are the leader
+      of a team and sub-teams of AI Agents.\\nYour task is to coordinate the team
+      to complete the user's request.\\n\\nHere are the members in your team:\\n<team_members>\\n
+      - Agent 1:\\n   - ID: scraper-agent\\n   - Name: Scraper Agent\\n   - Role:
+      Website Scraper\\n   - Member tools:\\n    - read_url\\n - Agent 2:\\n   - ID:
+      analyzer-agent\\n   - Name: Analyzer Agent\\n   - Role: Content Analyzer\\n</team_members>\\n\\n<how_to_respond>\\n-
+      Your role is to delegate tasks to members in your team with the highest likelihood
+      of completing the user's request.\\n- Carefully analyze the tools available
+      to the members and their roles before delegating tasks.\\n- You cannot use a
+      member tool directly. You can only delegate tasks to members.\\n- When you delegate
+      a task to another member, make sure to include:\\n  - member_id (str): The ID
+      of the member to delegate the task to. Use only the ID of the member, not the
+      ID of the team followed by the ID of the member.\\n  - task_description (str):
+      A clear description of the task.\\n  - expected_output (str): The expected output.\\n-
+      You can delegate tasks to multiple members at once.\\n- You must always analyze
+      the responses from members before responding to the user.\\n- After analyzing
+      the responses from the members, if you feel the task has been completed, you
+      can stop and respond to the user.\\n- If you are not satisfied with the responses
+      from the members, you should re-assign the task.\\n- For simple greetings, thanks,
+      or questions about the team itself, you should respond directly.\\n- For all
+      work requests, tasks, or questions requiring expertise, route to appropriate
+      team members.\\n</how_to_respond>\\n\\n<instructions>\\n- Use the read_url tool
+      to scrape content from https://quotes.toscrape.com/\\n- From the scraped content,
+      identify the first quote and its author\\n</instructions>\"},{\"role\":\"user\",\"content\":\"Scrape
+      the text content from https://quotes.toscrape.com/ and identify the first quote
+      and its author. Format as: 'First quote: [quote] by [author]'\"},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_W2kGV4xXowiKCNqJJFWdx9VR\",\"function\":{\"arguments\":\"{\\\"member_id\\\":\\\"scraper-agent\\\",\\\"task_description\\\":\\\"Scrape
+      the text content from https://quotes.toscrape.com/\\\",\\\"expected_output\\\":\\\"The
+      scraped content from the website.\\\"}\",\"name\":\"delegate_task_to_member\"},\"type\":\"function\"}],\"content\":\"\"},{\"role\":\"tool\",\"content\":\"Here
+      is the scraped content from the website:\\n\\n---\\n\\n**Quotes to Scrape**\\n\\n1.
+      \u201CThe world as we have created it is a process of our thinking. It cannot
+      be changed without changing our thinking.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: change, deep-thoughts, thinking, world\\n\\n2. \u201CIt is our
+      choices, Harry, that show what we truly are, far more than our abilities.\u201D
+      \ \\n   \u2014 J.K. Rowling  \\n   Tags: abilities, choices\\n\\n3. \u201CThere
+      are only two ways to live your life. One is as though nothing is a miracle.
+      The other is as though everything is a miracle.\u201D  \\n   \u2014 Albert Einstein
+      \ \\n   Tags: inspirational, life, live, miracle, miracles\\n\\n4. \u201CThe
+      person, be it gentleman or lady, who has not pleasure in a good novel, must
+      be intolerably stupid.\u201D  \\n   \u2014 Jane Austen  \\n   Tags: aliteracy,
+      books, classic, humor\\n\\n5. \u201CImperfection is beauty, madness is genius
+      and it's better to be absolutely ridiculous than absolutely boring.\u201D  \\n
+      \  \u2014 Marilyn Monroe  \\n   Tags: be-yourself, inspirational\\n\\n6. \u201CTry
+      not to become a man of success. Rather become a man of value.\u201D  \\n   \u2014
+      Albert Einstein  \\n   Tags: adulthood, success, value\\n\\n7. \u201CIt is better
+      to be hated for what you are than to be loved for what you are not.\u201D  \\n
+      \  \u2014 Andr\xE9 Gide  \\n   Tags: life, love\\n\\n8. \u201CI have not failed.
+      I've just found 10,000 ways that won't work.\u201D  \\n   \u2014 Thomas A. Edison
+      \ \\n   Tags: edison, failure, inspirational, paraphrased\\n\\n9. \u201CA woman
+      is like a tea bag; you never know how strong it is until it's in hot water.\u201D
+      \ \\n   \u2014 Eleanor Roosevelt  \\n   Tags: misattributed-eleanor-roosevelt\\n\\n10.
+      \u201CA day without sunshine is like, you know, night.\u201D  \\n    \u2014
+      Steve Martin  \\n    Tags: humor, obvious, simile\\n\\n---\\n\\n**Top Ten tags:**
+      love, inspirational, life, humor, books, reading, friendship, friends, truth,
+      simile\\n\\n---\\n\\n**Quotes by:** GoodReads.com  \\n**Made with \u2764 by
+      Zyte**\",\"tool_call_id\":\"call_W2kGV4xXowiKCNqJJFWdx9VR\"},{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_SGAptoX1CWhdD032WZmOaRJV\",\"function\":{\"arguments\":\"{\\\"member_id\\\":\\\"analyzer-agent\\\",\\\"task_description\\\":\\\"Analyze
+      the scraped content and identify the first quote and its author. Format the
+      output as: 'First quote: [quote] by [author]'\\\",\\\"expected_output\\\":\\\"Formatted
+      string with the first quote and its author.\\\"}\",\"name\":\"delegate_task_to_member\"},\"type\":\"function\"}],\"content\":\"\"},{\"role\":\"tool\",\"content\":\"First
+      quote: \u201CThe world as we have created it is a process of our thinking. It
+      cannot be changed without changing our thinking.\u201D by Albert Einstein\",\"tool_call_id\":\"call_SGAptoX1CWhdD032WZmOaRJV\"}],\"model\":\"gpt-4o-mini\",\"temperature\":0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"delegate_task_to_member\",\"description\":\"Use
+      this function to delegate a task to the selected team member.\\nYou must provide
+      a clear and concise description of the task the member should achieve AND the
+      expected output.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"member_id\":{\"type\":\"string\",\"description\":\"(str)
+      The ID of the member to delegate the task to. Use only the ID of the member,
+      not the ID of the team followed by the ID of the member.\"},\"task_description\":{\"type\":\"string\",\"description\":\"(str)
+      A clear and concise description of the task the member should achieve.\"},\"expected_output\":{\"type\":\"string\",\"description\":\"(str)
+      The expected output from the member (optional).\"}},\"required\":[\"member_id\",\"task_description\"],\"additionalProperties\":false}}}]}"
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-CFHZRmzekVxZYcX6Qq5U8iNswN1cN\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1757758497,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"The first quote is: \u201CThe world
+        as we have created it is a process of our thinking. It cannot be changed without
+        changing our thinking.\u201D by Albert Einstein.\",\n        \"refusal\":
+        null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n
+        \     \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\":
+        1219,\n    \"completion_tokens\": 34,\n    \"total_tokens\": 1253,\n    \"prompt_tokens_details\":
+        {\n      \"cached_tokens\": 1152,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_8bda4d3a2c\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

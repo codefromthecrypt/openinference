@@ -35,15 +35,18 @@ dependencies = [
 
 [project.optional-dependencies]
 instruments = [
-  "agno>=1.5.2",
+  "agno>=2.0,<3.0",
 ]
 test = [
-  "agno==1.5.2",
+  "agno==2.0.4",
   "opentelemetry-sdk",
-  "pytest-recording",
+  "pytest-vcr",
+  "pytest-cov",
   "openai",
-  "ddgs",
-  "yfinance",
+  # For SinglePageWebsiteTools
+  "beautifulsoup4",
+  "requests",
+  "types-requests",
 ]
 
 [project.entry-points.opentelemetry_instrumentor]
@@ -86,6 +89,7 @@ ignore_missing_imports = true
 module = [
   "agno",
   "wrapt",
+  "opentelemetry.util._importlib_metadata",
 ]
 
 [tool.ruff]
