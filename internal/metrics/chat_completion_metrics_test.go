@@ -72,7 +72,7 @@ func TestRecordTokenUsage(t *testing.T) {
 
 	pm.SetModel("test-model")
 	pm.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
-	pm.RecordTokenUsage(t.Context(), 10, 5, 15, nil)
+	pm.RecordTokenUsage(t.Context(), 10, 5, nil)
 
 	count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
 	assert.Equal(t, uint64(1), count)
@@ -193,7 +193,7 @@ func TestHeaderLabelMapping(t *testing.T) {
 
 	pm.SetModel("test-model")
 	pm.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
-	pm.RecordTokenUsage(t.Context(), 10, 5, 15, requestHeaders)
+	pm.RecordTokenUsage(t.Context(), 10, 5, requestHeaders)
 
 	// Verify that the header mapping is set correctly.
 	assert.Equal(t, headerMapping, pm.requestHeaderLabelMapping)
@@ -212,6 +212,7 @@ func TestHeaderLabelMapping(t *testing.T) {
 	assert.Equal(t, uint64(1), count)
 }
 
+// getHistogramValues returns the count and sum of a histogram metric with the given attributes.
 func getHistogramValues(t *testing.T, reader metric.Reader, metric string, attrs attribute.Set) (uint64, float64) {
 	var data metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(t.Context(), &data))
@@ -236,6 +237,8 @@ func getHistogramValues(t *testing.T, reader metric.Reader, metric string, attrs
 	return datapoints[0].Count, datapoints[0].Sum
 }
 
+// TestRecordTokenLatency_MaxAcrossStream_EndHasNoUsage tests that we track the maximum token count
+// across all streaming chunks, even when the final chunk has no usage data.
 func TestRecordTokenLatency_MaxAcrossStream_EndHasNoUsage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mr := metric.NewManualReader()
@@ -271,6 +274,8 @@ func TestRecordTokenLatency_MaxAcrossStream_EndHasNoUsage(t *testing.T) {
 	})
 }
 
+// TestRecordTokenLatency_OnlyFinalUsage tests that time_per_output_token is calculated correctly
+// when token usage is only provided in the final chunk (non-streaming responses).
 func TestRecordTokenLatency_OnlyFinalUsage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mr := metric.NewManualReader()
@@ -304,6 +309,8 @@ func TestRecordTokenLatency_OnlyFinalUsage(t *testing.T) {
 	})
 }
 
+// TestRecordTokenLatency_ZeroTokensFirst tests that time_to_first_token is recorded on the first chunk
+// even when it has zero tokens (streaming responses without usage in initial chunks).
 func TestRecordTokenLatency_ZeroTokensFirst(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mr := metric.NewManualReader()
@@ -320,18 +327,21 @@ func TestRecordTokenLatency_ZeroTokensFirst(t *testing.T) {
 		pm.SetModel("test-model")
 		pm.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
 
+		// First token (records TTFT).
 		time.Sleep(5 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 0, false, nil)
 		count, sum := getHistogramValues(t, mr, genaiMetricServerTimeToFirstToken, attrs)
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, 5*time.Millisecond.Seconds(), sum, "Should record TTFT at 5ms on first call")
 
+		// Second chunk with 2 tokens.
 		time.Sleep(5 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 2, false, nil)
 		count, sum = getHistogramValues(t, mr, genaiMetricServerTimeToFirstToken, attrs)
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, 5*time.Millisecond.Seconds(), sum, "TTFT should remain at 5ms")
 
+		// Final chunk with total of 5 tokens.
 		time.Sleep(5 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 5, true, nil)
 		count, sum = getHistogramValues(t, mr, genaiMetricServerTimePerOutputToken, attrs)
@@ -340,6 +350,8 @@ func TestRecordTokenLatency_ZeroTokensFirst(t *testing.T) {
 	})
 }
 
+// TestRecordTokenLatency_SingleToken tests that time_per_output_token is NOT recorded
+// when there's only one output token (division by zero case).
 func TestRecordTokenLatency_SingleToken(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mr := metric.NewManualReader()
@@ -377,6 +389,9 @@ func TestRecordTokenLatency_SingleToken(t *testing.T) {
 	})
 }
 
+// TestRecordTokenLatency_MultipleChunksFormula tests the OTEL spec formula:
+// time_per_output_token = (request_duration - time_to_first_token) / (output_tokens - 1)
+// with multiple streaming chunks to verify correct calculation.
 func TestRecordTokenLatency_MultipleChunksFormula(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mr := metric.NewManualReader()
@@ -393,12 +408,15 @@ func TestRecordTokenLatency_MultipleChunksFormula(t *testing.T) {
 		pm.SetModel("test-model")
 		pm.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
 
+		// First chunk: 3 tokens at 5ms (records TTFT).
 		time.Sleep(5 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 3, false, nil)
 
+		// Second chunk: 5 tokens total at 10ms.
 		time.Sleep(5 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 5, false, nil)
 
+		// Final chunk: 10 tokens total at 20ms.
 		time.Sleep(10 * time.Millisecond)
 		pm.RecordTokenLatency(t.Context(), 10, true, nil)
 

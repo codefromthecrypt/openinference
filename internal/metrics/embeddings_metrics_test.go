@@ -29,7 +29,7 @@ func TestEmbeddings_RecordTokenUsage(t *testing.T) {
 
 	em.SetModel("text-embedding-ada-002")
 	em.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
-	em.RecordTokenUsage(t.Context(), 10, 10, nil)
+	em.RecordTokenUsage(t.Context(), 10, nil)
 
 	// Embeddings only consume input tokens to generate vectors.
 	count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
@@ -56,9 +56,9 @@ func TestEmbeddings_RecordTokenUsage_MultipleRecords(t *testing.T) {
 	inputAttrs := attribute.NewSet(append(attrs, attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput))...)
 
 	// Record multiple token usages.
-	em.RecordTokenUsage(t.Context(), 5, 5, nil)
-	em.RecordTokenUsage(t.Context(), 15, 15, nil)
-	em.RecordTokenUsage(t.Context(), 20, 20, nil)
+	em.RecordTokenUsage(t.Context(), 5, nil)
+	em.RecordTokenUsage(t.Context(), 15, nil)
+	em.RecordTokenUsage(t.Context(), 20, nil)
 
 	// Check input tokens: 5 + 15 + 20 = 40.
 	count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
@@ -87,7 +87,7 @@ func TestEmbeddings_HeaderLabelMapping(t *testing.T) {
 
 	em.SetModel("text-embedding-ada-002")
 	em.SetBackend(&filterapi.Backend{Schema: filterapi.VersionedAPISchema{Name: filterapi.APISchemaOpenAI}})
-	em.RecordTokenUsage(t.Context(), 10, 10, requestHeaders)
+	em.RecordTokenUsage(t.Context(), 10, requestHeaders)
 
 	// Verify that the header mapping is set correctly.
 	assert.Equal(t, headerMapping, em.requestHeaderLabelMapping)
