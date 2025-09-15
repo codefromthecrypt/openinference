@@ -43,15 +43,12 @@ func NewEmbeddings(meter metric.Meter, requestHeaderLabelMapping map[string]stri
 }
 
 // RecordTokenUsage implements [EmbeddingsMetrics.RecordTokenUsage].
-func (e *embeddings) RecordTokenUsage(ctx context.Context, inputTokens, totalTokens uint32, requestHeaders map[string]string) {
+func (e *embeddings) RecordTokenUsage(ctx context.Context, inputTokens, _ uint32, requestHeaders map[string]string) {
 	attrs := e.buildBaseAttributes(requestHeaders)
 
+	// Embeddings only consume input tokens to generate vector representations.
 	e.metrics.tokenUsage.Record(ctx, float64(inputTokens),
 		metric.WithAttributeSet(attrs),
 		metric.WithAttributes(attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput)),
-	)
-	e.metrics.tokenUsage.Record(ctx, float64(totalTokens),
-		metric.WithAttributeSet(attrs),
-		metric.WithAttributes(attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeTotal)),
 	)
 }
